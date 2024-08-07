@@ -20,10 +20,14 @@
         };
         
         # Specify Rust version here
-        _rustToolchain = pkgs.rust-bin.stable.latest.default;
+        _rustToolchain = (pkgs.rust-bin.stable.latest.default.override {
+          extensions = ["rust-src" "cargo" "rustc"];
+        });
+
         _rustPlatform = pkgs.makeRustPlatform {
           rustc = _rustToolchain;
           cargo = _rustToolchain;
+          rust-src = _rustToolchain;
         };
 
         manifest = (pkgs.lib.importTOML ./Cargo.toml).package;
@@ -38,7 +42,7 @@
             cargoLock.lockFile = ./Cargo.lock;
 
             buildInputs = with pkgs; [
-              python38
+              python39
             ];
 
             preCheck = ''
@@ -52,15 +56,15 @@
         };
 
         devShells.default = pkgs.mkShell {
-
+          name = "rust-dev";
           buildInputs = with pkgs; [
             _rustToolchain
             python39
           ];
 
-          env = {
-            RUST_SRC_PATH = "${_rustToolchain}/lib/rustlib/src/rust/library";
-          };
+          RUST_SRC_PATH = "${_rustToolchain}/lib/rustlib/src/rust/library";
+          CARGO_TERM_COLOR = "always";
+          RUST_BACKTRACE = "full";
 
         };
       }
