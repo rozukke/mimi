@@ -8,7 +8,7 @@
   };
 
   nixConfig = {
-    bash-prompt-prefix = "(rust-shell) ";
+    bash-prompt-prefix = "(rust-dev) ";
   };
 
   outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
@@ -41,10 +41,6 @@
             src = ./.;
             cargoLock.lockFile = ./Cargo.lock;
 
-            buildInputs = with pkgs; [
-              python39
-            ];
-
             preCheck = ''
               export RUST_BACKTRACE=1 
             '';
@@ -59,6 +55,8 @@
           name = "rust-dev";
           buildInputs = with pkgs; [
             _rustToolchain
+            gcc
+            gdb
             python39
           ];
 
