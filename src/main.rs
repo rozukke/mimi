@@ -1,5 +1,10 @@
 use clap::{Error, Parser};
+use lexer::TokenKind;
 use std::{fs, path::Path, process::Command};
+
+mod lexer;
+
+use crate::lexer::tokenize;
 
 /// A simple C compiler writted in Rust.
 #[derive(Parser, Debug)]
@@ -39,8 +44,8 @@ fn main() -> Result<(), Error> {
         .unwrap();
 
     // Read and cleanup preprocessed file
-    let _file = fs::read_to_string(&preprc_path).unwrap();
-    std::fs::remove_file(preprc_path).unwrap();
+    let file = fs::read_to_string(&preprc_path)?;
+    std::fs::remove_file(preprc_path)?;
 
     // Compilation stages
     if args.lex {
@@ -51,15 +56,23 @@ fn main() -> Result<(), Error> {
         todo!()
     }
 
-    // Run assembler & linker
+    // Print tokens in file
+    for tok in tokenize(&file) {
+        if tok.kind != TokenKind::Whitespace {
+            println!("{tok:?}");
+            println!(
+                "{}",
+                &file[tok.span.loc() as usize..(tok.span.loc() + tok.span.len() as u32) as usize]
+            );
+        }
+    }
+
     let asm_path = path.with_extension("s");
     let bin_path = path.with_extension("");
     Command::new("gcc")
         .args([asm_path.to_str().unwrap(), "-o", bin_path.to_str().unwrap()])
         .output()
         .unwrap();
-
-    // Assembly file cleanup
     match std::fs::remove_file(&asm_path) {
         Ok(_) => (),
         Err(err) => println!(
