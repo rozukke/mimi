@@ -1,3 +1,5 @@
+use crate::span::{Offset, Span};
+
 use crate::lexer::cursor::Cursor;
 use regex::Regex;
 
@@ -21,6 +23,7 @@ pub enum TokenKind {
     OpenBrace,
     CloseBrace,
     Whitespace,
+    Unknown,
     Eof,
 }
 
@@ -28,23 +31,6 @@ pub enum TokenKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LiteralKind {
     Int,
-}
-
-/// Struct representing location of a token inside of a source file.
-#[derive(Debug)]
-pub struct Span {
-    loc: u32,
-    len: u16,
-}
-
-impl Span {
-    pub fn loc(&self) -> u32 {
-        self.loc
-    }
-
-    pub fn len(&self) -> u16 {
-        self.len
-    }
 }
 
 pub fn tokenize(input: &str) -> impl Iterator<Item = Token> + '_ {
@@ -61,46 +47,53 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = Token> + '_ {
 
 impl Cursor<'_> {
     pub fn advance_token(&mut self) -> Token {
+        if self.is_eof() {
+            return Token {
+                kind: TokenKind::Eof,
+                span: Span::default(),
+            };
+        }
+
+        // TODO: Switch to a more performant charstream impl
         // Add new constructs here. Not sure how to do this in an exhaustive way, but that would be nice.
         let patterns = vec![
-            (TokenKind::Ident, Regex::new(r"[a-zA-Z_]\w*\b").unwrap()),
+            (TokenKind::Ident, Regex::new(r"^[a-zA-Z_]\w*\b").unwrap()),
             (
                 TokenKind::Literal {
                     kind: LiteralKind::Int,
                 },
-                Regex::new(r"[0-9]+\b").unwrap(),
+                Regex::new(r"^[0-9]+\b").unwrap(),
             ),
-            (TokenKind::Semic, Regex::new(r";").unwrap()),
-            (TokenKind::OpenParen, Regex::new(r"\(").unwrap()),
-            (TokenKind::CloseParen, Regex::new(r"\)").unwrap()),
-            (TokenKind::OpenBrace, Regex::new(r"\{").unwrap()),
-            (TokenKind::CloseBrace, Regex::new(r"\}").unwrap()),
-            (TokenKind::Whitespace, Regex::new(r"\s+").unwrap()),
+            (TokenKind::Semic, Regex::new(r"^;").unwrap()),
+            (TokenKind::OpenParen, Regex::new(r"^\(").unwrap()),
+            (TokenKind::CloseParen, Regex::new(r"^\)").unwrap()),
+            (TokenKind::OpenBrace, Regex::new(r"^\{").unwrap()),
+            (TokenKind::CloseBrace, Regex::new(r"^\}").unwrap()),
+            (TokenKind::Whitespace, Regex::new(r"^\s+").unwrap()),
         ];
 
         for (kind, re) in patterns {
             if let Some(tok) = re.find(self.at_curr_pt()) {
                 // Only check starting exactly at cursor position
-                if tok.start() == 0 {
-                    let token = Token {
-                        kind,
-                        span: Span {
-                            loc: self.curr_pt().try_into().unwrap(),
-                            len: tok.len().try_into().unwrap(),
-                        },
-                    };
-                    self.advance(tok.len());
-                    return token;
-                }
+                let token = Token {
+                    kind,
+                    span: Span::new(
+                        Offset(self.curr_pt() as u32),
+                        Offset((self.curr_pt() + tok.len()) as u32),
+                    ),
+                };
+                self.advance(tok.len());
+                return token;
             }
         }
 
-        // TODO: Diagnostic error integration to show unparseable tokens as errors
-        // if self.is_eof() {
+        self.bump();
         Token {
-            kind: TokenKind::Eof,
-            span: Span { loc: 0, len: 0 },
+            kind: TokenKind::Unknown,
+            span: Span::new(
+                Offset((self.curr_pt() - 1) as u32),
+                Offset(self.curr_pt() as u32),
+            ),
         }
-        // }
     }
 }

@@ -1,8 +1,10 @@
-// Mostly taken from `rustc_lexer` and adapted to suit the project.
+// Heavily instpired and referenced from `rustc_lexer` and adapted to suit the project.
+// See https://doc.rust-lang.org/beta/nightly-rustc/src/rustc_lexer/cursor.rs.html
 
 /// Peekable iterator over a char sequence.
 pub struct Cursor<'a> {
     len_remaining: usize,
+    /// Index that the cursor is pointing to in the source
     curr_pt: usize,
     /// Iterator over chars in a &str
     chars: &'a str,
@@ -17,8 +19,9 @@ impl<'a> Cursor<'a> {
         }
     }
 
+    /// File is finished parsing
     pub fn is_eof(&self) -> bool {
-        self.chars.is_empty()
+        self.len_remaining == 0
     }
 
     /// Return slice of input starting at the current point of the cursor
@@ -30,6 +33,11 @@ impl<'a> Cursor<'a> {
     pub fn advance(&mut self, amt: usize) {
         self.curr_pt += amt;
         self.len_remaining -= amt;
+    }
+
+    /// Advance by one character
+    pub fn bump(&mut self) {
+        self.advance(1)
     }
 
     /// Returns current cursor position
